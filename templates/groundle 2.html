@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groundle</title>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #stadium-image {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Groundle!</h1>
+    <p>Guess which team plays at the given stadium.</p>
+    <p>You have 3 guesses.</p>
+
+    <img id="stadium-image" src="{{ url_for('static', filename='images/') }}{{ stadium|lower|replace(' ', '-') }}.jpg" alt="Stadium Image" style="max-width: 100%; height: auto; width: 500px;">
+
+    <br>
+    <div id="game-elements">
+        <label for="team-dropdown">Select the team:</label>
+        <select id="team-dropdown" style="width: 300px;">
+            <option value="" disabled selected>Select team from dropdown</option>
+            {% for team in teams %}
+                <option value="{{ team }}">{{ team }}</option>
+            {% endfor %}
+        </select>
+    
+        <button onclick="checkGuess()">Submit Guess</button>
+    </div>
+
+    <div id="feedback-container">
+        <!-- Feedback will be displayed here -->
+    </div>
+    
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#team-dropdown').select2();
+        });
+        
+        var currentStadium = "{{ stadium }}";
+        let attempts = 0;
+        const feedbackList = [];
+        const colourList = [];
+    
+        function hideGameElements() {
+            document.getElementById('game-elements').style.display = 'none';
+        }
+    
+        function checkGuess() {
+            const userGuess = $('#team-dropdown').val();
+    
+            if (!userGuess) {
+                alert('Please select a team.');
+                return;
+            }
+    
+            attempts++;
+    
+            fetch('/check_guess', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_guess: userGuess,
+                    stadium_id: currentStadium,
+                    attempts: attempts,
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                feedbackList.push(data.feedback);
+                colourList.push(data.colour);
+
+                const feedbackAndColourHTML = feedbackList.map((feedback, index) => {
+                    const colour = colourList[index];
+                    return `<div class="feedback-line">
+                                <p><div style="width: 20px; height: 20px; background-color: ${colour};"></div> ${feedback}</p>
+                            </div>`;
+                }).join('');
+
+                document.getElementById('feedback-container').innerHTML = feedbackAndColourHTML;
+
+                if (data.correct_team) {
+                    console.log('Inside condition');
+                    document.getElementById('feedback-container').innerHTML += `<p>The correct team was ${data.correct_team}. Thanks for playing!</p>`;
+                    document.getElementById('feedback-container').innerHTML += `<p>Refresh the page to play again.</p>`;
+                    
+                    // Hide the entire game elements section
+                    hideGameElements();
+                    
+                    // You can choose to restart the game or do something else here
+                }
+            });
+        }
+    </script>    
+</body>
+</html>
